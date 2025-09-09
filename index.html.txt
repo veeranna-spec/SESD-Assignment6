@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Banking App (Demo)</title>
+  <style>
+    :root{--bg:#f4f6fb;--card:#fff;--accent:#0b84ff;--muted:#6b6f79}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    body{margin:0;background:var(--bg);color:#0b1220}
+    .container{max-width:980px;margin:28px auto;padding:20px}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:48px;height:48px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(10,20,40,0.06)}
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:18px}
+
+    /* login */
+    .login{max-width:420px;margin:40px auto}
+    .form-row{display:flex;flex-direction:column;margin-bottom:10px}
+    input,select,button{padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:14px}
+    button.primary{background:var(--accent);color:#fff;border:none}
+
+    /* overview */
+    .balance{font-size:28px;font-weight:700}
+    .muted{color:var(--muted);font-size:13px}
+
+    /* transactions */
+    .tx-list{max-height:360px;overflow:auto;margin-top:12px}
+    .tx{display:flex;justify-content:space-between;padding:10px;border-bottom:1px dashed #f1f3f6}
+    .tx .left{display:flex;flex-direction:column}
+
+    .actions{display:flex;flex-direction:column;gap:8px}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:880px){.grid{grid-template-columns:1fr}.login{margin:20px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo">BA</div>
+        <div>
+          <div style="font-weight:700">BankAssist (Demo)</div>
+          <div class="muted">Secure. Simple. Local demo only.</div>
+        </div>
+      </div>
+      <div class="muted">Demo account — no real money</div>
+    </header>
+
+    <!-- Login card -->
+    <div id="loginView" class="card login">
+      <h3>Sign in (Demo)</h3>
+      <div class="form-row">
+        <label class="muted">Username</label>
+        <input id="username" placeholder="e.g. alice" />
+      </div>
+      <div class="form-row">
+        <label class="muted">Password</label>
+        <input id="password" type="password" placeholder="any password" />
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="signin" class="primary">Sign in</button>
+        <button id="quickDemo">Quick demo user</button>
+      </div>
+      <div style="margin-top:12px;color:var(--muted);font-size:13px">Use the Quick demo button to load sample data.</div>
+    </div>
+
+    <!-- Main app -->
+    <div id="app" style="display:none">
+      <div class="grid">
+        <section class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div class="muted">Welcome back, <span id="userNameDisplay">User</span></div>
+              <div class="balance" id="balanceDisplay">$0.00</div>
+              <div class="muted">Available balance</div>
+            </div>
+            <div class="actions">
+              <button id="logout">Logout</button>
+              <button id="refresh">Refresh</button>
+            </div>
+          </div>
+
+          <hr style="margin:14px 0;border:none;border-top:1px solid #f1f3f6" />
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <div style="flex:1">
+              <h4 style="margin:0 0 8px 0">Transfer</h4>
+              <div style="display:flex;gap:8px">
+                <select id="fromAcct"></select>
+                <select id="toAcct"></select>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <input id="transferAmount" placeholder="Amount" />
+                <button id="doTransfer" class="primary">Send</button>
+              </div>
+              <div id="transferMsg" class="muted" style="margin-top:8px"></div>
+            </div>
+
+            <div style="width:240px">
+              <h4 style="margin:0 0 8px 0">Quick actions</h4>
+              <button id="addTxn">Add sample transaction</button>
+              <button id="exportCsv">Export Transactions</button>
+            </div>
+          </div>
+
+          <h4 style="margin-top:14px">Recent transactions</h4>
+          <div class="tx-list card" id="txList"></div>
+        </section>
+
+        <aside class="card">
+          <h4>Accounts</h4>
+          <div id="accountsList"></div>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #f1f3f6" />
+          <h4>Make payment</h4>
+          <div class="form-row">
+            <label class="muted">Payee name</label>
+            <input id="payeeName" placeholder="Electric Co." />
+          </div>
+          <div class="form-row">
+            <label class="muted">Amount</label>
+            <input id="payAmount" placeholder="Amount" />
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="payBtn" class="primary">Pay</button>
+            <button id="cancelPay">Cancel</button>
+          </div>
+          <div id="payMsg" class="muted" style="margin-top:8px"></div>
+        </aside>
+      </div>
+
+      <footer class="muted">This is a front-end demo. Do not use for real banking or sensitive data.</footer>
+    </div>
+  </div>
+
+  <script>
+    // Demo data (in-memory)
+    const demoUsers = {
+      'alice':{
+        name:'Alice Johnson',
+        accounts:[{id:'A-1001',type:'Checking',balance:2540.75},{id:'A-2001',type:'Savings',balance:10250.00}],
+        txns: [
+          {date:'2025-09-01',desc:'Salary',amount:3000,type:'credit'},
+          {date:'2025-09-02',desc:'Grocery Store',amount:-76.45,type:'debit'}
+        ]
+      },
+      'bob':{
+        name:'Bob Singh',
+        accounts:[{id:'B-3001',type:'Checking',balance:760.30}],
+        txns:[{date:'2025-08-25',desc:'Coffee',amount:-4.50,type:'debit'}]
+      }
+    };
+
+    let state = {user:null};
+
+    // Helper
+    function formatMoney(v){return '$' + Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+    // Login
+    document.getElementById('signin').addEventListener('click',()=>{
+      const u=document.getElementById('username').value.trim().toLowerCase();
+      if(!u){alert('Enter username (try alice)');return}
+      if(demoUsers[u]){
+        state.user = JSON.parse(JSON.stringify(demoUsers[u])); // clone
+        showApp();
+      } else {
+        alert('User not found. Use Quick demo or try alice/bob.');
+      }
+    });
+    document.getElementById('quickDemo').addEventListener('click',()=>{
+      state.user = JSON.parse(JSON.stringify(demoUsers['alice']));
+      showApp();
+    });
+
+    function showApp(){
+      document.getElementById('loginView').style.display='none';
+      document.getElementById('app').style.display='block';
+      document.getElementById('userNameDisplay').innerText = state.user.name.split(' ')[0];
+      renderAccounts();
+      renderTxns();
+    }
+
+    document.getElementById('logout').addEventListener('click',()=>{
+      state.user = null;
+      document.getElementById('app').style.display='none';
+      document.getElementById('loginView').style.display='block';
+      document.getElementById('username').value='';
+      document.getElementById('password').value='';
+    });
+
+    document.getElementById('refresh').addEventListener('click',()=>{renderAccounts();renderTxns();});
+
+    // Render accounts
+    function renderAccounts(){
+      const list = document.getElementById('accountsList');
+      const from = document.getElementById('fromAcct');
+      const to = document.getElementById('toAcct');
+      list.innerHTML=''; from.innerHTML=''; to.innerHTML='';
+      state.user.accounts.forEach(acc=>{
+        const el = document.createElement('div');el.style.padding='8px 0';el.innerHTML = `<div style="font-weight:600">${acc.id} — ${acc.type}</div><div class=\"muted\">${formatMoney(acc.balance)}</div>`;
+        list.appendChild(el);
+        const opt1 = document.createElement('option');opt1.value=acc.id;opt1.innerText=acc.id + ' — ' + acc.type;from.appendChild(opt1);
+        const opt2 = document.createElement('option');opt2.value=acc.id;opt2.innerText=acc.id + ' — ' + acc.type;to.appendChild(opt2);
+      });
+      // update top balance display (sum of accounts)
+      const total = state.user.accounts.reduce((s,a)=>s+a.balance,0);
+      document.getElementById('balanceDisplay').innerText = formatMoney(total);
+    }
+
+    // Render transactions
+    function renderTxns(){
+      const txList = document.getElementById('txList');
+      txList.innerHTML='';
+      state.user.txns.slice().reverse().forEach(t=>{
+        const div = document.createElement('div');div.className='tx';
+        div.innerHTML = `<div class=\"left\"><div style=\"font-weight:600\">${t.desc}</div><div class=\"muted\">${t.date}</div></div><div style=\"text-align:right\">${t.amount<0?'-':''}${formatMoney(Math.abs(t.amount))}<div class=\"muted\">${t.type}</div></div>`;
+        txList.appendChild(div);
+      });
+    }
+
+    // Transfer
+    document.getElementById('doTransfer').addEventListener('click',()=>{
+      const fromId = document.getElementById('fromAcct').value;
+      const toId = document.getElementById('toAcct').value;
+      const amt = parseFloat(document.getElementById('transferAmount').value);
+      const msgEl = document.getElementById('transferMsg'); msgEl.innerText='';
+      if(!fromId || !toId){msgEl.innerText='Select both accounts';return}
+      if(fromId===toId){msgEl.innerText='Choose different accounts';return}
+      if(isNaN(amt) || amt<=0){msgEl.innerText='Enter a valid amount';return}
+      const fromAcc = state.user.accounts.find(a=>a.id===fromId);
+      const toAcc = state.user.accounts.find(a=>a.id===toId);
+      if(fromAcc.balance < amt){msgEl.innerText='Insufficient funds';return}
+      fromAcc.balance -= amt; toAcc.balance += amt;
+      // add txns
+      const now = new Date().toISOString().slice(0,10);
+      state.user.txns.push({date:now,desc:`Transfer to ${toAcc.id}`,amount:-amt,type:'debit'});
+      state.user.txns.push({date:now,desc:`Transfer from ${fromAcc.id}`,amount:amt,type:'credit'});
+      renderAccounts(); renderTxns();
+      msgEl.innerText = 'Transfer successful';
+      setTimeout(()=>msgEl.innerText='',2500);
+    });
+
+    // Add sample transaction
+    document.getElementById('addTxn').addEventListener('click',()=>{
+      const now = new Date().toISOString().slice(0,10);
+      state.user.txns.push({date:now,desc:'Merchant (demo)',amount:-Math.round(Math.random()*120+5),type:'debit'});
+      renderTxns();
+    });
+
+    // Export CSV
+    document.getElementById('exportCsv').addEventListener('click',()=>{
+      const rows = [['date','desc','amount','type']].concat(state.user.txns.map(t=>[t.date,t.desc,t.amount,t.type]));
+      const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');a.href=url;a.download='transactions.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+    });
+
+    // Payments
+    document.getElementById('payBtn').addEventListener('click',()=>{
+      const name = document.getElementById('payeeName').value.trim();
+      const amt = parseFloat(document.getElementById('payAmount').value);
+      const msg = document.getElementById('payMsg');msg.innerText='';
+      if(!name || isNaN(amt) || amt<=0){msg.innerText='Enter payee and amount';return}
+      // deduct from first account
+      const acc = state.user.accounts[0];
+      if(acc.balance < amt){msg.innerText='Insufficient funds';return}
+      acc.balance -= amt;
+      const now = new Date().toISOString().slice(0,10);
+      state.user.txns.push({date:now,desc:`Payment: ${name}`,amount:-amt,type:'debit'});
+      renderAccounts(); renderTxns();
+      msg.innerText = 'Payment successful (demo)';
+      setTimeout(()=>msg.innerText='',2500);
+    });
+    document.getElementById('cancelPay').addEventListener('click',()=>{document.getElementById('payeeName').value='';document.getElementById('payAmount').value='';document.getElementById('payMsg').innerText='';});
+
+    // small UX: allow Enter to sign in
+    document.getElementById('password').addEventListener('keydown',(e)=>{if(e.key==='Enter')document.getElementById('signin').click();});
+
+  </script>
+</body>
+</html>
