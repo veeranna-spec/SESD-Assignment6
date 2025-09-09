@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini Food Delivery App</title>
+  <style>
+    :root{--accent:#ff6b6b;--muted:#6b6b6b;--card:#fff;--bg:#f7f7fb}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;background:var(--bg);color:#111}
+    header{background:linear-gradient(90deg,#fff 0%, #fff0 100%);padding:18px 20px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:5;border-bottom:1px solid #eee}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:46px;height:46px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .search{flex:1;display:flex;gap:8px}
+    .search input{flex:1;padding:10px 12px;border-radius:10px;border:1px solid #e6e6e6}
+    .btn{background:var(--accent);color:#fff;padding:10px 14px;border-radius:10px;border:none;cursor:pointer}
+
+    .layout{display:grid;grid-template-columns:1fr 360px;gap:20px;padding:20px;max-width:1100px;margin:20px auto}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .chip{padding:8px 12px;border-radius:999px;background:#fff;border:1px solid #eee;cursor:pointer}
+
+    .menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+    .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 2px 8px rgba(20,20,20,0.04);display:flex;flex-direction:column;gap:8px}
+    .card img{width:100%;height:140px;object-fit:cover;border-radius:8px}
+    .card h4{margin:0;font-size:16px}
+    .meta{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px}
+    .card .actions{display:flex;justify-content:space-between;align-items:center;margin-top:6px}
+    .small{font-size:13px;color:var(--muted)}
+
+    .cart{background:#fff;padding:16px;border-radius:12px;box-shadow:0 2px 12px rgba(10,10,10,0.06)}
+    .cart h3{margin:0 0 8px 0}
+    .cart-list{max-height:420px;overflow:auto;margin-bottom:8px}
+    .cart-item{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed #f1f1f1}
+    .qty{display:inline-flex;align-items:center;gap:6px}
+    .qty button{border-radius:6px;padding:6px 8px;border:1px solid #eee;background:#f8f8f8;cursor:pointer}
+    .total{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-weight:700}
+
+    footer{max-width:1100px;margin:10px auto 40px;padding:12px;color:var(--muted)}
+
+    @media (max-width:900px){.layout{grid-template-columns:1fr;padding:12px}.cart{position:fixed;right:12px;bottom:12px;width:320px;box-shadow:0 10px 30px rgba(0,0,0,0.12)} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo">FD</div>
+      <div>
+        <div style="font-weight:700">FoodDash</div>
+        <div style="font-size:12px;color:var(--muted)">Fast. Fresh. Local.</div>
+      </div>
+    </div>
+
+    <div class="search">
+      <input id="search" placeholder="Search dishes or restaurants..." />
+      <button class="btn" id="clearBtn">Clear</button>
+    </div>
+
+    <button class="btn" id="viewCart">View Cart</button>
+  </header>
+
+  <main class="layout">
+    <section>
+      <div class="filters" id="filters"></div>
+      <div class="menu" id="menu"></div>
+    </section>
+
+    <aside class="cart" id="cartPanel">
+      <h3>Your Order</h3>
+      <div class="cart-list" id="cartList">
+        <div class="small">Cart is empty — add dishes to begin.</div>
+      </div>
+      <div class="total"><span>Subtotal</span><span id="subtotal">₹0.00</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn" id="checkout">Checkout</button>
+        <button style="padding:10px 12px;border-radius:10px;border:1px solid #eee;background:#fff;cursor:pointer" id="clearCart">Clear</button>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Tip: This is a single-file starter. You can connect it to a backend or payment gateway later.
+  </footer>
+
+  <script>
+    // Sample menu data (would normally come from an API)
+    const menuData = [
+      {id:1,name:'Margherita Pizza',desc:'Classic cheese & tomato',price:299,tag:'Pizza',img:'https://images.unsplash.com/photo-1601924582975-6b8e5f4d7d8b?auto=format&fit=crop&w=800&q=60'},
+      {id:2,name:'Paneer Butter Masala',desc:'Creamy tomato gravy',price:229,tag:'Indian',img:'https://images.unsplash.com/photo-1604908177522-3c2f2a9b71f4?auto=format&fit=crop&w=800&q=60'},
+      {id:3,name:'Veg Biryani',desc:'Aromatic basmati rice',price:179,tag:'Indian',img:'https://images.unsplash.com/photo-1604908813190-c6d3a9e4f1b9?auto=format&fit=crop&w=800&q=60'},
+      {id:4,name:'Cheeseburger',desc:'Beef patty, cheese, lettuce',price:259,tag:'Burgers',img:'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=800&q=60'},
+      {id:5,name:'Sushi Platter',desc:'Assorted rolls',price:499,tag:'Sushi',img:'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=60'},
+      {id:6,name:'Caesar Salad',desc:'Romaine, croutons, parmesan',price:149,tag:'Salads',img:'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=800&q=60'}
+    ];
+
+    const tags = ['All','Pizza','Indian','Burgers','Sushi','Salads'];
+    let cart = {};
+
+    // Render filter chips
+    const filtersEl = document.getElementById('filters');
+    tags.forEach(t=>{
+      const btn = document.createElement('button');btn.className='chip';btn.innerText=t;btn.onclick=()=>{filterBy(t)};filtersEl.appendChild(btn);
+    });
+
+    const menuEl = document.getElementById('menu');
+    const cartListEl = document.getElementById('cartList');
+    const subtotalEl = document.getElementById('subtotal');
+
+    function renderMenu(items){
+      menuEl.innerHTML='';
+      if(items.length===0){menuEl.innerHTML='<div style="grid-column:1/-1;padding:20px;color:var(--muted)">No dishes found.</div>';return}
+      items.forEach(d=>{
+        const c=document.createElement('div');c.className='card';
+        c.innerHTML = `
+          <img src="${d.img}" alt="${d.name}"/>
+          <div>
+            <h4>${d.name}</h4>
+            <div class="meta"><span class="small">${d.desc}</span><strong>₹${d.price}</strong></div>
+          </div>
+          <div class="actions">
+            <div class="small">${d.tag}</div>
+            <div>
+              <button class="btn" onclick="addToCart(${d.id})">Add</button>
+            </div>
+          </div>
+        `;
+        menuEl.appendChild(c);
+      });
+    }
+
+    function filterBy(tag){
+      if(tag==='All'){renderMenu(menuData);return}
+      renderMenu(menuData.filter(m=>m.tag===tag));
+    }
+
+    // Search
+    document.getElementById('search').addEventListener('input',e=>{
+      const q=e.target.value.trim().toLowerCase();
+      const res = menuData.filter(m=>m.name.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q) || m.tag.toLowerCase().includes(q));
+      renderMenu(res);
+    });
+    document.getElementById('clearBtn').addEventListener('click',()=>{document.getElementById('search').value='';renderMenu(menuData)});
+
+    // Cart operations
+    function addToCart(id){
+      const item = menuData.find(x=>x.id===id);
+      if(!cart[id]) cart[id]={...item,qty:0};
+      cart[id].qty += 1;
+      renderCart();
+    }
+
+    function renderCart(){
+      const keys = Object.keys(cart);
+      if(keys.length===0){cartListEl.innerHTML='<div class="small">Cart is empty — add dishes to begin.</div>';subtotalEl.innerText='₹0.00';return}
+      cartListEl.innerHTML='';
+      let total = 0;
+      keys.forEach(k=>{
+        const it = cart[k];
+        total += it.price * it.qty;
+        const div = document.createElement('div');div.className='cart-item';
+        div.innerHTML = `
+          <div style="flex:1">
+            <div style="font-weight:600">${it.name}</div>
+            <div class="small">₹${it.price} x ${it.qty} = ₹${(it.price*it.qty).toFixed(2)}</div>
+          </div>
+          <div class="qty">
+            <button onclick="decrease(${it.id})">-</button>
+            <div style="min-width:24px;text-align:center">${it.qty}</div>
+            <button onclick="increase(${it.id})">+</button>
+          </div>
+        `;
+        cartListEl.appendChild(div);
+      });
+      subtotalEl.innerText = `₹${total.toFixed(2)}`;
+    }
+
+    function increase(id){cart[id].qty+=1;renderCart();}
+    function decrease(id){
+      cart[id].qty-=1;
+      if(cart[id].qty<=0) delete cart[id];
+      renderCart();
+    }
+
+    document.getElementById('clearCart').addEventListener('click',()=>{cart={};renderCart();});
+    document.getElementById('viewCart').addEventListener('click',()=>{document.getElementById('cartPanel').scrollIntoView({behavior:'smooth',block:'center'})});
+
+    document.getElementById('checkout').addEventListener('click',()=>{
+      const keys = Object.keys(cart);
+      if(keys.length===0){alert('Your cart is empty. Add something tasty first!');return}
+      // Simple checkout simulation
+      const order = keys.map(k=>({name:cart[k].name,qty:cart[k].qty,price:cart[k].price}));
+      const total = Object.values(cart).reduce((s,it)=>s+it.price*it.qty,0);
+      alert('Order placed!\n\n' + order.map(o=>`${o.qty} x ${o.name}`).join('\n') + '\n\nTotal: ₹' + total.toFixed(2) + '\n\n(This is a demo — integrate a backend to persist orders.)');
+      cart = {};
+      renderCart();
+    });
+
+    // Initial render
+    renderMenu(menuData);
+    renderCart();
+  </script>
+</body>
+</html>
